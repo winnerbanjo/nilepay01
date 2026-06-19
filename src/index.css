@@ -1,0 +1,197 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-nile-bg text-nile-dark antialiased;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+@layer components {
+  .display-type {
+    font-size: clamp(3.25rem, 6.4vw, 5.35rem);
+    font-weight: 500;
+    line-height: 0.98;
+    letter-spacing: -0.055em;
+    text-wrap: balance;
+  }
+
+  .section-display {
+    font-size: clamp(2.55rem, 5vw, 4.65rem);
+    font-weight: 500;
+    line-height: 1.02;
+    letter-spacing: -0.05em;
+    text-wrap: balance;
+  }
+
+  .editorial-copy {
+    font-size: clamp(1rem, 1.45vw, 1.25rem);
+    line-height: 1.55;
+    letter-spacing: -0.018em;
+  }
+
+  .eyebrow-type {
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+}
+
+/* Custom scrollbars for a premium feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Slick Custom Animations (Stripe/Google Inspired) */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(159, 232, 112, 0.1), 0 0 1px rgba(159, 232, 112, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(159, 232, 112, 0.45), 0 0 2px rgba(159, 232, 112, 0.3);
+  }
+}
+
+@keyframes gradientBg {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Animation utilities */
+.animate-fade-in-up {
+  opacity: 0;
+  animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-in-right {
+  opacity: 0;
+  animation: slideInRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-float {
+  animation: float 5s ease-in-out infinite;
+}
+
+.hover-glow:hover {
+  animation: pulseGlow 2s infinite;
+}
+
+.gradient-text-stripe {
+  background: linear-gradient(135deg, #10231B 0%, #1e4d3a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.stripe-dark-gradient {
+  background: linear-gradient(135deg, #123D2F 0%, #1b5341 50%, #123D2F 100%);
+  background-size: 200% 200%;
+  animation: gradientBg 12s ease infinite;
+}
+
+.stripe-light-gradient {
+  background: linear-gradient(135deg, #EAF8EF 0%, #f6faf7 100%);
+}
+
+.glassmorphism {
+  background: rgba(18, 61, 47, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.card-hover-effect {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-hover-effect:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px -10px rgba(18, 61, 47, 0.08);
+  border-color: rgba(18, 61, 47, 0.3);
+}
+
+/* Custom interactive button draw */
+.btn-stripe-style {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-stripe-style::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-20deg);
+  transition: 0.75s;
+  opacity: 0;
+}
+
+.btn-stripe-style:hover::after {
+  opacity: 1;
+  left: 120%;
+}
+
+.btn-stripe-style:hover {
+  transform: translateY(-1px);
+}
