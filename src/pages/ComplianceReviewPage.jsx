@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useNilePay } from '../context/NilePayContext';
 import { DetailRow } from '../components/FormComponents';
 import { RequestInfoModal, ApprovalModal, RejectionModal } from '../components/Modals';
-import { ArrowLeft, Check, X, ShieldAlert, MessageSquare, AlertCircle, Sparkles } from 'lucide-react';
+import { ArrowLeft, Check, X, ShieldAlert, MessageSquare, AlertCircle, Sparkles, ExternalLink, Download } from 'lucide-react';
 
 export default function ComplianceReviewPage() {
   const { id } = useParams();
@@ -122,6 +122,16 @@ export default function ComplianceReviewPage() {
             </span>
             <span className="text-[10px] text-nile-muted">{fileObj.size || 'Size check ok'}</span>
           </div>
+          {fileObj.url && (
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <a href={fileObj.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-nile-darkgreen hover:underline">
+                View document <ExternalLink size={12} />
+              </a>
+              <a href={fileObj.downloadUrl || fileObj.url.replace('/upload/', '/upload/fl_attachment/')} download={fileObj.name} className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 hover:underline">
+                Download <Download size={12} />
+              </a>
+            </div>
+          )}
           {docState.status === 'rejected' && (
             <p className="text-xs text-red-600 font-semibold bg-red-50 p-2 rounded-lg mt-1 border border-red-100">
               Flagged: {docState.rejectionReason}

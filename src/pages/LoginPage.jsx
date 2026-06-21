@@ -2,14 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useNilePay } from '../context/NilePayContext';
 import { Input } from '../components/FormComponents';
-import { ShieldCheck, Mail, Lock, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useNilePay();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [roleSelection, setRoleSelection] = useState('merchant'); // 'merchant' or 'admin'
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
@@ -38,12 +37,8 @@ export default function LoginPage() {
     // Mock network lag
     setTimeout(() => {
       setIsLoading(false);
-      const user = login(email, password, roleSelection);
-      if (user.role === 'admin') {
-        navigate('/admin/compliance');
-      } else {
-        navigate('/dashboard');
-      }
+      login(email, password, 'merchant');
+      navigate('/dashboard');
     }, 1000);
   };
 
@@ -62,42 +57,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Role Toggle Tab */}
-        <div className="flex border-b border-nile-border pb-1">
-          <button
-            type="button"
-            onClick={() => setRoleSelection('merchant')}
-            className={`flex-1 text-center pb-2.5 text-sm font-bold border-b-2 transition ${
-              roleSelection === 'merchant'
-                ? 'border-nile-darkgreen text-nile-darkgreen'
-                : 'border-transparent text-nile-muted hover:text-nile-dark'
-            }`}
-          >
-            Merchant portal
-          </button>
-          <button
-            type="button"
-            onClick={() => setRoleSelection('admin')}
-            className={`flex-1 text-center pb-2.5 text-sm font-bold border-b-2 transition ${
-              roleSelection === 'admin'
-                ? 'border-nile-darkgreen text-nile-darkgreen'
-                : 'border-transparent text-nile-muted hover:text-nile-dark'
-            }`}
-          >
-            Compliance portal
-          </button>
-        </div>
-
-        {/* Info Banner for easy review */}
-        <div className="bg-nile-softmint/40 border border-nile-border p-3.5 rounded-xl text-xs text-nile-darkgreen space-y-1">
-          <p className="font-semibold flex items-center gap-1"><ShieldCheck size={13} className="text-nile-darkgreen" /> Reviewers Note:</p>
-          {roleSelection === 'merchant' ? (
-            <p>Use <strong className="underline">tosi@houseoftosi.ng</strong> to inspect the "Under Review" merchant dashboard.</p>
-          ) : (
-            <p>Use <strong className="underline">admin@nile.ng</strong> to enter the Compliance Admin dashboard.</p>
-          )}
-        </div>
-
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
@@ -106,7 +65,7 @@ export default function LoginPage() {
             name="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder={roleSelection === 'admin' ? 'admin@nile.ng' : 'you@example.com'}
+            placeholder="you@example.com"
             required
             error={errors.email}
           />
