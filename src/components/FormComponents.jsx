@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload, File, CheckCircle, AlertCircle, X, Info } from 'lucide-react';
+import { Upload, File, CheckCircle, AlertCircle, X, Info, Loader2 } from 'lucide-react';
 
 // Custom Text/Number Input with built-in Tailwind styling
 export function Input({ label, type = 'text', name, value, onChange, error, placeholder, required = false, note, maxLength, pattern }) {
@@ -69,6 +69,7 @@ export function Select({ label, name, value, onChange, options, error, required 
 export function FileUploadCard({ label, required = false, value, onChange, error, accept = '.pdf,.png,.jpg,.jpeg' }) {
   const fileInputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -77,7 +78,7 @@ export function FileUploadCard({ label, required = false, value, onChange, error
     }
   };
 
-  const validateAndProcessFile = (file) => {
+  const validateAndProcessFile = async (file) => {
     // 5MB is 5 * 1024 * 1024 bytes
     const maxSizeBytes = 5 * 1024 * 1024;
     
@@ -95,12 +96,19 @@ export function FileUploadCard({ label, required = false, value, onChange, error
       return;
     }
 
-    // Pass up standard file object format for the mock db
-    onChange({
-      name: file.name,
-      size: `${(file.size / (1024 * 1024)).toFixed(1)}MB`,
-      type: file.type
-    });
+    setIsUploading(true);
+    try {
+      const uploadBody = new FormData();
+      uploadBody.append('file', file);
+      const response = await fetch('/api/upload', { method: 'POST', body: uploadBody });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Document upload failed.');
+      onChange(payload, null);
+    } catch (uploadError) {
+      onChange(null, uploadError.message || 'Document upload failed. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleDrag = (e) => {
@@ -128,7 +136,12 @@ export function FileUploadCard({ label, required = false, value, onChange, error
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       
-      {value ? (
+      {isUploading ? (
+        <div className="flex items-center justify-center gap-3 border border-nile-border bg-slate-50 rounded-xl p-6 text-nile-darkgreen">
+          <Loader2 size={20} className="animate-spin" />
+          <span className="text-sm font-bold">Uploading securely…</span>
+        </div>
+      ) : value ? (
         <div className="flex items-center justify-between border border-nile-border bg-nile-softmint/30 rounded-xl p-4 transition duration-200">
           <div className="flex items-center space-x-3 truncate">
             <div className="bg-nile-darkgreen/10 text-nile-darkgreen p-2 rounded-lg">

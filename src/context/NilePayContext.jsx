@@ -357,7 +357,7 @@ export const NilePayProvider = ({ children }) => {
 
   // Login handler
   const login = (email, password, role) => {
-    if (role === 'admin' || email.includes('admin') || email.includes('compliance')) {
+    if (role === 'admin') {
       const adminUser = { email, role: 'admin', name: 'Amara Nwosu' };
       setCurrentUser(adminUser);
       return adminUser;
