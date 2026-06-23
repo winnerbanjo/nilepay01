@@ -7,9 +7,9 @@ const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_FILE_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png']);
 
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME?.trim(),
+  api_key: process.env.CLOUDINARY_API_KEY?.trim(),
+  api_secret: process.env.CLOUDINARY_API_SECRET?.trim(),
   secure: true,
 });
 
@@ -18,8 +18,9 @@ globalThis.__nilePayDb = cache;
 
 async function database() {
   if (cache.db) return cache.db;
-  if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is not configured.');
-  cache.client = new MongoClient(process.env.MONGODB_URI);
+  const uri = process.env.MONGODB_URI?.trim();
+  if (!uri) throw new Error('MONGODB_URI is not configured.');
+  cache.client = new MongoClient(uri);
   await cache.client.connect();
   cache.db = cache.client.db(process.env.MONGODB_DATABASE || undefined);
   await Promise.all([

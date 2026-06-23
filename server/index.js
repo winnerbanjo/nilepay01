@@ -22,13 +22,13 @@ function requireConfiguration() {
 requireConfiguration();
 
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME?.trim(),
+  api_key: process.env.CLOUDINARY_API_KEY?.trim(),
+  api_secret: process.env.CLOUDINARY_API_SECRET?.trim(),
   secure: true,
 });
 
-const mongoClient = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
+const mongoClient = new MongoClient(process.env.MONGODB_URI?.trim(), { serverSelectionTimeoutMS: 5000 });
 let database;
 
 async function connectDatabase() {
