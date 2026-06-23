@@ -54,13 +54,15 @@ async function save(db, application, actor = 'Nile Pay') {
   const applications = db.collection('applications');
   const previous = await applications.findOne({ id: application.id });
   const { _id, ...input } = application;
+  const now = new Date().toISOString();
   const updated = {
     ...input,
     status: input.status || 'Draft',
     kycData: input.kycData || {},
     documentVerification: input.documentVerification || {},
     timeline: Array.isArray(input.timeline) ? input.timeline : [],
-    updated_at: new Date().toISOString(),
+    created_at: previous?.created_at || input.created_at || now,
+    updated_at: now,
   };
   await applications.updateOne({ id: updated.id }, { $set: updated }, { upsert: true });
 

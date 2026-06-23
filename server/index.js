@@ -100,7 +100,11 @@ async function saveApplication(db, application, actor = 'Nile Pay') {
   const normalized = normalizeApplication(application);
   const previous = await applications.findOne({ id: normalized.id });
   const now = new Date().toISOString();
-  const saved = { ...normalized, updated_at: now };
+  const saved = {
+    ...normalized,
+    created_at: previous?.created_at || normalized.created_at || now,
+    updated_at: now,
+  };
 
   await applications.updateOne({ id: saved.id }, { $set: saved }, { upsert: true });
 

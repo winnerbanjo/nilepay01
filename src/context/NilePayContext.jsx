@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 
 const NilePayContext = createContext(null);
 
@@ -129,6 +129,7 @@ export const NilePayProvider = ({ children }) => {
           industry: 'Retail',
           notes: '',
           progress: 'Not started',
+          created_at: new Date().toISOString(),
           kycData: {
             firstName: '',
             lastName: '',
@@ -167,6 +168,7 @@ export const NilePayProvider = ({ children }) => {
       industry: 'Retail',
       notes: '',
       progress: 'Profile completed',
+      created_at: new Date().toISOString(),
       kycData: {
         firstName: signupData.firstName,
         lastName: signupData.lastName,
@@ -241,6 +243,7 @@ export const NilePayProvider = ({ children }) => {
       industry: 'Retail',
       notes: '',
       progress: 'Account type selected',
+      created_at: new Date().toISOString(),
       kycData: {
         firstName: '',
         lastName: '',
