@@ -16,8 +16,7 @@ This starts both services:
 - Compliance console: `http://localhost:5173/admin/compliance`
 
 The API persists complete application records and audit events in
-`server/data/nilepay.sqlite`. The database is created automatically and is
-excluded from version control.
+a managed MongoDB Atlas database. Uploaded files (passports, CAC certificates, utility bills, etc.) are stored securely in Cloudinary.
 
 ## API routes
 
@@ -28,6 +27,7 @@ excluded from version control.
 - `PUT /api/applications/:id`
 - `GET /api/applications/:id/audit`
 - `POST /api/bootstrap`
+- `POST /api/upload`
 
 ## Build
 
@@ -35,7 +35,5 @@ excluded from version control.
 npm run build
 ```
 
-The current backend is intended for local product development. Before public
-deployment, add authenticated sessions and role-based permissions, encrypted
-object storage for uploaded documents, secrets management, database backups,
-and a managed production database.
+The production environment is configured on Vercel utilizing Serverless Functions, connected to MongoDB Atlas and Cloudinary.
+
