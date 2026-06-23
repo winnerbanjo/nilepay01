@@ -250,6 +250,12 @@ export default function CorporateKycForm() {
       }
     }
     
+    if (!activeApp) {
+      alert('Your onboarding session could not be resolved. Please restart the sign-up process.');
+      navigate('/signup');
+      return;
+    }
+    
     // Submit corporate KYC
     submitToCompliance(activeApp.id, formData);
     navigate('/kyc/submitted');

@@ -142,6 +142,12 @@ export default function IndividualKycForm() {
       return;
     }
     
+    if (!activeApp) {
+      alert('Your onboarding session could not be resolved. Please restart the sign-up process.');
+      navigate('/signup');
+      return;
+    }
+    
     // Submit KYC to context
     submitToCompliance(activeApp.id, formData);
     navigate('/kyc/submitted');

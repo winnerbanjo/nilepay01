@@ -25,6 +25,11 @@ export default function KycReviewPage() {
   const isCorporate = accountType === 'corporate';
 
   const handleSubmit = () => {
+    if (!activeApp) {
+      alert('Your onboarding session could not be resolved. Please restart the sign-up process.');
+      navigate('/signup');
+      return;
+    }
     submitToCompliance(activeApp.id, kycData);
     navigate('/kyc/submitted');
   };

@@ -48,7 +48,13 @@ export const NilePayProvider = ({ children }) => {
         }
 
         if (!cancelled) {
-          setApplications(serverApplications);
+          setApplications(prev => {
+            const serverIds = new Set(serverApplications.map(a => a.id));
+            return [
+              ...serverApplications,
+              ...prev.filter(a => !serverIds.has(a.id))
+            ];
+          });
           setBackendStatus('connected');
           setBackendReady(true);
         }
