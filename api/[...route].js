@@ -133,7 +133,8 @@ function upload(request, response) {
 }
 
 export default async function handler(request, response) {
-  const route = Array.isArray(request.query.route) ? request.query.route : [request.query.route].filter(Boolean);
+  const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  const route = url.pathname.replace(/^\/api\//, '').split('/').filter(Boolean);
   try {
     if (request.method === 'POST' && route[0] === 'upload') {
       const required = ['CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET'];
