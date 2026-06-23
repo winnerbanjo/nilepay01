@@ -163,11 +163,34 @@ export default async function handler(request, response) {
 
     if (request.method === 'GET' && route[0] === 'health') {
       await database();
+      let cloudinaryStatus = 'missing';
+      let cloudinaryError = null;
+      if (process.env.CLOUDINARY_CLOUD_NAME) {
+        try {
+          const mockImage = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+          const result = await cloudinary.uploader.upload(mockImage, {
+            folder: 'nilepay/health-test',
+          });
+          cloudinaryStatus = `connected (URL: ${result.secure_url})`;
+        } catch (err) {
+          cloudinaryStatus = 'failed';
+          cloudinaryError = {
+            message: err.message,
+            http_code: err.http_code,
+            name: err.name,
+            secret_len: process.env.CLOUDINARY_API_SECRET ? process.env.CLOUDINARY_API_SECRET.length : 0,
+            secret_last3: process.env.CLOUDINARY_API_SECRET ? process.env.CLOUDINARY_API_SECRET.slice(-3) : 'none',
+            key_len: process.env.CLOUDINARY_API_KEY ? process.env.CLOUDINARY_API_KEY.length : 0,
+            name_len: process.env.CLOUDINARY_CLOUD_NAME ? process.env.CLOUDINARY_CLOUD_NAME.length : 0
+          };
+        }
+      }
       return send(response, 200, {
         ok: true,
         service: 'nilepay-compliance-api',
         database: 'connected',
-        cloudinary: process.env.CLOUDINARY_CLOUD_NAME ? 'configured' : 'missing',
+        cloudinary: cloudinaryStatus,
+        cloudinaryDiagnostics: cloudinaryError,
       });
     }
 
