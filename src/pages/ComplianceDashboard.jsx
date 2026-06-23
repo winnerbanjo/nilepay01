@@ -105,7 +105,7 @@ export default function ComplianceDashboard() {
   const handleReviewClick = (app) => {
     // If not assigned and is submitted, assign to current compliance officer
     if (!app.assignedReviewer && (app.status === 'Submitted')) {
-      startReview(app.id, 'Amara Nwosu');
+      startReview(app.id, 'Nile Review Team');
     }
     navigate(`/admin/compliance/applications/${app.id}`);
   };

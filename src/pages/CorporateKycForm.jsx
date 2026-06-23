@@ -257,7 +257,10 @@ export default function CorporateKycForm() {
     }
     
     // Submit corporate KYC
-    submitToCompliance(activeApp.id, formData);
+    const res = submitToCompliance(activeApp.id, formData);
+    if (res && res.success === false) {
+      return;
+    }
     navigate('/kyc/submitted');
   };
 

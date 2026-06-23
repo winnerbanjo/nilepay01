@@ -64,6 +64,35 @@ async function save(db, application, actor = 'Nile Pay') {
     created_at: previous?.created_at || input.created_at || now,
     updated_at: now,
   };
+
+  if (updated.status !== 'Draft' && updated.status !== 'Rejected') {
+    const email = updated.kycData?.email?.trim().toLowerCase();
+    const bvn = updated.kycData?.bvn?.trim();
+    const rcNumber = updated.kycData?.rcNumber?.trim();
+    const taxId = updated.kycData?.taxId?.trim();
+
+    const query = {
+      id: { $ne: updated.id },
+      status: { $in: ['Submitted', 'Under Review', 'Approved', 'Account Created', 'Payment Activated', 'More Info Required'] }
+    };
+
+    const duplicateCursor = applications.find(query);
+    for await (const app of duplicateCursor) {
+      if (email && app.kycData?.email?.trim().toLowerCase() === email) {
+        throw new Error(`Email address (${email}) is already registered under another active merchant profile.`);
+      }
+      if (bvn && app.kycData?.bvn?.trim() === bvn) {
+        throw new Error(`Bank Verification Number (BVN) is already registered under another active merchant profile.`);
+      }
+      if (rcNumber && app.kycData?.rcNumber?.trim() === rcNumber) {
+        throw new Error(`Registration Number / CAC RC Number (${rcNumber}) is already registered under another active merchant profile.`);
+      }
+      if (taxId && app.kycData?.taxId?.trim() === taxId) {
+        throw new Error(`Tax Identification Number (TIN) is already registered under another active merchant profile.`);
+      }
+    }
+  }
+
   await applications.updateOne({ id: updated.id }, { $set: updated }, { upsert: true });
 
   if (!previous || previous.status !== updated.status) {

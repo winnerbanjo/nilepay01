@@ -108,7 +108,7 @@ export const NilePayProvider = ({ children }) => {
   // Login handler
   const login = (email, password, role) => {
     if (role === 'admin') {
-      const adminUser = { email, role: 'admin', name: 'Amara Nwosu' };
+      const adminUser = { email, role: 'admin', name: 'Nile Review Team' };
       setCurrentUser(adminUser);
       return adminUser;
     } else {
@@ -321,7 +321,41 @@ export const NilePayProvider = ({ children }) => {
     syncWithBackend(updated);
   };
 
+  const checkApplicationUniqueness = (appId, data) => {
+    const email = data.email?.trim().toLowerCase();
+    const bvn = data.bvn?.trim();
+    const rcNumber = data.rcNumber?.trim();
+    const taxId = data.taxId?.trim();
+
+    for (const app of applications) {
+      if (app.id === appId) continue;
+      
+      const isActive = ['Submitted', 'Under Review', 'Approved', 'Account Created', 'Payment Activated', 'More Info Required'].includes(app.status);
+      if (!isActive) continue;
+
+      if (email && app.kycData?.email?.trim().toLowerCase() === email) {
+        return { valid: false, reason: `Email address (${email}) is already registered under another active merchant profile.` };
+      }
+      if (bvn && app.kycData?.bvn?.trim() === bvn) {
+        return { valid: false, reason: `Bank Verification Number (BVN) is already registered under another active merchant profile.` };
+      }
+      if (rcNumber && app.kycData?.rcNumber?.trim() === rcNumber) {
+        return { valid: false, reason: `Registration Number / CAC RC Number (${rcNumber}) is already registered under another active merchant profile.` };
+      }
+      if (taxId && app.kycData?.taxId?.trim() === taxId) {
+        return { valid: false, reason: `Tax Identification Number (TIN) is already registered under another active merchant profile.` };
+      }
+    }
+    return { valid: true };
+  };
+
   const submitToCompliance = (id, completeData) => {
+    const uniqueness = checkApplicationUniqueness(id, completeData);
+    if (!uniqueness.valid) {
+      alert(uniqueness.reason);
+      return { success: false, error: uniqueness.reason };
+    }
+
     const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
     const updated = applications.map(app => {
       if (app.id === id) {
@@ -364,6 +398,7 @@ export const NilePayProvider = ({ children }) => {
     });
     setApplications(updated);
     syncWithBackend(updated);
+    return { success: true };
   };
 
   const startReview = (id, reviewerName) => {
@@ -537,7 +572,8 @@ export const NilePayProvider = ({ children }) => {
       requestMoreInformation,
       updateApplicationStatus,
       resetDemo,
-      startNewSignup
+      startNewSignup,
+      checkApplicationUniqueness
     }}>
       {children}
     </NilePayContext.Provider>

@@ -30,7 +30,10 @@ export default function KycReviewPage() {
       navigate('/signup');
       return;
     }
-    submitToCompliance(activeApp.id, kycData);
+    const res = submitToCompliance(activeApp.id, kycData);
+    if (res && res.success === false) {
+      return;
+    }
     navigate('/kyc/submitted');
   };
 

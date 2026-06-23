@@ -106,6 +106,34 @@ async function saveApplication(db, application, actor = 'Nile Pay') {
     updated_at: now,
   };
 
+  if (saved.status !== 'Draft' && saved.status !== 'Rejected') {
+    const email = saved.kycData?.email?.trim().toLowerCase();
+    const bvn = saved.kycData?.bvn?.trim();
+    const rcNumber = saved.kycData?.rcNumber?.trim();
+    const taxId = saved.kycData?.taxId?.trim();
+
+    const query = {
+      id: { $ne: saved.id },
+      status: { $in: ['Submitted', 'Under Review', 'Approved', 'Account Created', 'Payment Activated', 'More Info Required'] }
+    };
+
+    const duplicateCursor = applications.find(query);
+    for await (const app of duplicateCursor) {
+      if (email && app.kycData?.email?.trim().toLowerCase() === email) {
+        throw new Error(`Email address (${email}) is already registered under another active merchant profile.`);
+      }
+      if (bvn && app.kycData?.bvn?.trim() === bvn) {
+        throw new Error(`Bank Verification Number (BVN) is already registered under another active merchant profile.`);
+      }
+      if (rcNumber && app.kycData?.rcNumber?.trim() === rcNumber) {
+        throw new Error(`Registration Number / CAC RC Number (${rcNumber}) is already registered under another active merchant profile.`);
+      }
+      if (taxId && app.kycData?.taxId?.trim() === taxId) {
+        throw new Error(`Tax Identification Number (TIN) is already registered under another active merchant profile.`);
+      }
+    }
+  }
+
   await applications.updateOne({ id: saved.id }, { $set: saved }, { upsert: true });
 
   const events = [];
