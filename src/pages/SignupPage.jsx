@@ -4,14 +4,11 @@ import { useNilePay } from '../context/NilePayContext';
 import { User, Building2, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function SignupPage() {
-  const { selectAccountType, activeApp } = useNilePay();
+  const { startNewSignup } = useNilePay();
   const navigate = useNavigate();
 
   const handleSelection = (type) => {
-    // If we have an active draft application, select type, else mock initialize
-    if (activeApp) {
-      selectAccountType(activeApp.id, type);
-    }
+    startNewSignup(type);
     if (type === 'individual') {
       navigate('/kyc/individual');
     } else {

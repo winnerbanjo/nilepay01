@@ -184,6 +184,24 @@ export const NilePayProvider = ({ children }) => {
     return merchantUser;
   };
 
+  // Direct Immediate Backend Sync Helper
+  const syncWithBackend = async (updatedApps) => {
+    try {
+      await fetch('/api/applications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applications: updatedApps,
+          actor: currentUser?.name || currentUser?.email || 'Nile Pay app',
+        }),
+      });
+      setBackendStatus('connected');
+    } catch (err) {
+      console.error('Immediate sync failed:', err);
+      setBackendStatus('offline');
+    }
+  };
+
   const logout = () => {
     setCurrentUser(null);
   };
@@ -201,11 +219,56 @@ export const NilePayProvider = ({ children }) => {
     }
   };
 
+  // Guest signup initiator
+  const startNewSignup = (type) => {
+    const newId = 'np-' + Math.random().toString(36).substring(2, 11);
+    const newApp = {
+      id: newId,
+      merchantName: 'New Merchant',
+      businessName: 'Pending Onboarding',
+      website: 'pending.nile.ng',
+      accountType: type,
+      status: 'Draft',
+      country: 'Nigeria',
+      submittedDate: '-',
+      assignedReviewer: null,
+      industry: 'Retail',
+      notes: '',
+      progress: 'Account type selected',
+      kycData: {
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        country: 'Nigeria'
+      },
+      documentVerification: {},
+      timeline: [
+        { time: new Date().toISOString().replace('T', ' ').substring(0, 16), title: 'Draft Initialized', description: `Started ${type} onboarding flow.`, user: 'Merchant' }
+      ]
+    };
+
+    const updated = [...applications.filter(a => a.id !== newId), newApp];
+    setApplications(updated);
+    setActiveMerchantAppId(newId);
+    syncWithBackend(updated);
+    return newApp;
+  };
+
   const saveDraft = (id, data, progressString) => {
-    setApplications(prev => prev.map(app => {
+    const updated = applications.map(app => {
       if (app.id === id) {
+        const merchantName = (data.firstName && data.lastName) 
+          ? `${data.firstName} ${data.lastName}` 
+          : app.merchantName;
+        const businessName = data.businessName || app.businessName;
+        const website = data.website || app.website;
+
         return {
           ...app,
+          merchantName,
+          businessName,
+          website,
           kycData: { ...app.kycData, ...data },
           progress: progressString || app.progress,
           timeline: [
@@ -220,11 +283,13 @@ export const NilePayProvider = ({ children }) => {
         };
       }
       return app;
-    }));
+    });
+    setApplications(updated);
+    syncWithBackend(updated);
   };
 
   const selectAccountType = (id, type) => {
-    setApplications(prev => prev.map(app => {
+    const updated = applications.map(app => {
       if (app.id === id) {
         return {
           ...app,
@@ -242,12 +307,14 @@ export const NilePayProvider = ({ children }) => {
         };
       }
       return app;
-    }));
+    });
+    setApplications(updated);
+    syncWithBackend(updated);
   };
 
   const submitToCompliance = (id, completeData) => {
     const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    setApplications(prev => prev.map(app => {
+    const updated = applications.map(app => {
       if (app.id === id) {
         const docVerification = {};
         if (completeData.idFile) docVerification.governmentId = { status: 'pending', fileName: completeData.idFile.name };
@@ -257,8 +324,17 @@ export const NilePayProvider = ({ children }) => {
         if (completeData.statusReportFile) docVerification.statusReportFile = { status: 'pending', fileName: completeData.statusReportFile.name };
         if (completeData.amlQuestionnaireFile) docVerification.amlQuestionnaire = { status: 'pending', fileName: completeData.amlQuestionnaireFile.name };
 
+        const merchantName = (completeData.firstName && completeData.lastName) 
+          ? `${completeData.firstName} ${completeData.lastName}` 
+          : app.merchantName;
+        const businessName = completeData.businessName || app.businessName;
+        const website = completeData.website || app.website;
+
         return {
           ...app,
+          merchantName,
+          businessName,
+          website,
           status: 'Submitted',
           submittedDate: timeStr.split(' ')[0],
           progress: '100% completed',
@@ -276,12 +352,14 @@ export const NilePayProvider = ({ children }) => {
         };
       }
       return app;
-    }));
+    });
+    setApplications(updated);
+    syncWithBackend(updated);
   };
 
   const startReview = (id, reviewerName) => {
     const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    setApplications(prev => prev.map(app => {
+    const updated = applications.map(app => {
       if (app.id === id) {
         return {
           ...app,
@@ -299,11 +377,14 @@ export const NilePayProvider = ({ children }) => {
         };
       }
       return app;
-    }));
+    });
+    setApplications(updated);
+    syncWithBackend(updated);
   };
 
   const verifyDocument = (appId, docKey, reviewStatus, rejectionReason = '') => {
-    setApplications(prev => prev.map(app => {
+    const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
+    const updated = applications.map(app => {
       if (app.id === appId) {
         const docVerification = { ...app.documentVerification };
         docVerification[docKey] = {
@@ -312,7 +393,6 @@ export const NilePayProvider = ({ children }) => {
           rejectionReason: reviewStatus === 'rejected' ? rejectionReason : undefined
         };
         
-        const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
         const docLabel = docKey === 'governmentId' ? 'Government ID' 
                        : docKey === 'utilityBill' ? 'Utility Bill' 
                        : docKey === 'cacCertFile' ? 'CAC Certificate' 
@@ -336,12 +416,14 @@ export const NilePayProvider = ({ children }) => {
         };
       }
       return app;
-    }));
+    });
+    setApplications(updated);
+    syncWithBackend(updated);
   };
 
   const requestMoreInformation = (id, message, missingDocLabel) => {
     const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    setApplications(prev => prev.map(app => {
+    const updated = applications.map(app => {
       if (app.id === id) {
         return {
           ...app,
@@ -359,12 +441,14 @@ export const NilePayProvider = ({ children }) => {
         };
       }
       return app;
-    }));
+    });
+    setApplications(updated);
+    syncWithBackend(updated);
   };
 
   const updateApplicationStatus = (id, nextStatus, note = '') => {
     const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 16);
-    setApplications(prev => prev.map(app => {
+    const updated = applications.map(app => {
       if (app.id === id) {
         let timelineEvent = {
           time: timeStr,
@@ -411,7 +495,9 @@ export const NilePayProvider = ({ children }) => {
         };
       }
       return app;
-    }));
+    });
+    setApplications(updated);
+    syncWithBackend(updated);
   };
 
   const resetDemo = () => {
@@ -419,7 +505,9 @@ export const NilePayProvider = ({ children }) => {
     localStorage.setItem('nilepay_applications', JSON.stringify(defaultApplications));
   };
 
-  const activeApp = applications.find(a => a.id === activeMerchantAppId) || applications[0];
+  const activeApp = currentUser?.role === 'merchant'
+    ? applications.find(a => a.id === currentUser.appId)
+    : (applications.find(a => a.id === activeMerchantAppId) || null);
 
   return (
     <NilePayContext.Provider value={{
@@ -439,7 +527,8 @@ export const NilePayProvider = ({ children }) => {
       verifyDocument,
       requestMoreInformation,
       updateApplicationStatus,
-      resetDemo
+      resetDemo,
+      startNewSignup
     }}>
       {children}
     </NilePayContext.Provider>
