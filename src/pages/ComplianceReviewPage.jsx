@@ -371,14 +371,14 @@ export default function ComplianceReviewPage() {
             </div>
           </div>
 
-          {/* Section 3: Document Verification (THE CRITICAL AUDIT AREA) */}
+          {/* Section 3: Document Verification */}
           <div className="bg-white border border-nile-border rounded-2xl p-6 shadow-sm space-y-4">
             <h3 className="text-sm font-bold text-nile-darkgreen uppercase border-b pb-2">Verify Uploaded Files</h3>
             <div className="space-y-3">
               {/* Government ID for Individual */}
               {!isCorporate && renderDocumentAuditCard('Government ID', 'governmentId', kycData.idFile)}
               
-              {/* Utility Bill (Both corporate and individual) */}
+              {/* Utility Bill */}
               {renderDocumentAuditCard('Business Utility Bill', 'utilityBill', kycData.utilityFile)}
               
               {/* Corporate documents */}
@@ -401,13 +401,12 @@ export default function ComplianceReviewPage() {
             </div>
           </div>
 
-          {/* Section 4: Authorisers & Invitees (If corporate) */}
+          {/* Section 4: Authorisers & Invitees */}
           {isCorporate && (
             <div className="bg-white border border-nile-border rounded-2xl p-6 shadow-sm space-y-4">
               <h3 className="text-sm font-bold text-nile-darkgreen uppercase border-b pb-2">Company Directors & Authorisers</h3>
               
               <div className="space-y-4">
-                {/* Authorisers */}
                 <div className="space-y-2 text-xs">
                   <p className="font-bold text-nile-dark">Registered Signees ({kycData.authorisers?.length || 0})</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -423,7 +422,6 @@ export default function ComplianceReviewPage() {
                   </div>
                 </div>
 
-                {/* Invitees */}
                 <div className="space-y-2 text-xs">
                   <p className="font-bold text-nile-dark">Invited Key Controllers ({kycData.invitees?.length || 0})</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -440,7 +438,7 @@ export default function ComplianceReviewPage() {
             </div>
           )}
 
-          {/* Section 5: Payout Account (If individual) */}
+          {/* Section 5: Payout Account */}
           {!isCorporate && (
             <div className="bg-white border border-nile-border rounded-2xl p-6 shadow-sm space-y-4">
               <h3 className="text-sm font-bold text-nile-darkgreen uppercase border-b pb-2">Payout Method</h3>

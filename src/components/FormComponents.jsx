@@ -147,8 +147,16 @@ export function FileUploadCard({ label, required = false, value, onChange, error
             <div className="bg-nile-darkgreen/10 text-nile-darkgreen p-2 rounded-lg">
               <File size={20} />
             </div>
-            <div className="truncate">
-              <p className="text-sm font-medium text-nile-dark truncate">{value.name}</p>
+            <div className="truncate text-left">
+              <a 
+                href={value.url} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="text-sm font-semibold text-nile-darkgreen hover:underline truncate block max-w-[200px]"
+                title="Click to view file"
+              >
+                {value.name}
+              </a>
               <p className="text-xs text-nile-muted">{value.size}</p>
             </div>
           </div>

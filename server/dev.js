@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 
 const processes = [
-  spawn(process.execPath, ['server/index.js'], { stdio: 'inherit' }),
+  spawn(process.execPath, ['--env-file=.env', 'server/index.js'], { stdio: 'inherit' }),
   spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'dev:web'], { stdio: 'inherit' }),
 ];
 

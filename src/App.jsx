@@ -25,27 +25,51 @@ function AppShell() {
   const isComplianceArea = location.pathname.startsWith('/admin/compliance');
   const isComplianceLogin = location.pathname === '/internal/compliance/login';
 
-  if (isComplianceLogin) return <ComplianceLoginPage />;
+  if (isComplianceLogin) {
+    return <ComplianceLoginPage />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-nile-bg text-nile-dark selection:bg-nile-brightgreen/40">
       {isComplianceArea ? <ComplianceHeader /> : <Navbar />}
+
       <main className="flex-grow">
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/login" element={<LoginPage />} />
+
+          {/* Merchant Onboarding & KYC Routes */}
           <Route path="/dashboard" element={<MerchantDashboard />} />
           <Route path="/account-type" element={<AccountTypeSelection />} />
           <Route path="/kyc/individual" element={<IndividualKycForm />} />
           <Route path="/kyc/corporate" element={<CorporateKycForm />} />
           <Route path="/kyc/review" element={<KycReviewPage />} />
           <Route path="/kyc/submitted" element={<SubmittedSuccess />} />
-          <Route path="/admin/compliance" element={<ProtectedRoute role="admin" loginPath="/internal/compliance/login"><ComplianceDashboard /></ProtectedRoute>} />
-          <Route path="/admin/compliance/applications/:id" element={<ProtectedRoute role="admin" loginPath="/internal/compliance/login"><ComplianceReviewPage /></ProtectedRoute>} />
+
+          {/* Restricted Compliance Routes */}
+          <Route
+            path="/admin/compliance"
+            element={(
+              <ProtectedRoute role="admin" loginPath="/internal/compliance/login">
+                <ComplianceDashboard />
+              </ProtectedRoute>
+            )}
+          />
+          <Route
+            path="/admin/compliance/applications/:id"
+            element={(
+              <ProtectedRoute role="admin" loginPath="/internal/compliance/login">
+                <ComplianceReviewPage />
+              </ProtectedRoute>
+            )}
+          />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+
       {!isComplianceArea && <Footer />}
     </div>
   );

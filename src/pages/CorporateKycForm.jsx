@@ -144,6 +144,14 @@ export default function CorporateKycForm() {
         tempErrors.email = 'Please enter a valid representative email.';
       }
       if (!formData.phone?.trim()) tempErrors.phone = 'Representative contact number is required.';
+      if (!formData.password) {
+        tempErrors.password = 'Password is required.';
+      } else if (formData.password.length < 6) {
+        tempErrors.password = 'Password must be at least 6 characters.';
+      }
+      if (formData.password !== formData.confirmPassword) {
+        tempErrors.confirmPassword = 'Passwords do not match.';
+      }
     }
 
     if (step === 1) {
@@ -325,6 +333,26 @@ export default function CorporateKycForm() {
                     onChange={handleChange}
                     required
                     error={errors.phone}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Input
+                    label="Password"
+                    type="password"
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    error={errors.password}
+                  />
+                  <Input
+                    label="Confirm Password"
+                    type="password"
+                    name="confirmPassword"
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    required
+                    error={errors.confirmPassword}
                   />
                 </div>
               </div>

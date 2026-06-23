@@ -56,7 +56,7 @@ export default function Footer() {
               <li><a href="#" className="hover:text-nile-brightgreen transition">KYC Document Requirements</a></li>
               <li><a href="#" className="hover:text-nile-brightgreen transition">BVN Verification FAQ</a></li>
               <li><a href="#" className="hover:text-nile-brightgreen transition">CAC Filing Instructions</a></li>
-              <li><a href="#" className="hover:text-nile-brightgreen transition">Contact Compliance Auditors</a></li>
+              <li><a href="/admin/compliance" className="hover:text-nile-brightgreen transition font-bold text-nile-brightgreen">Compliance Portal (Admin)</a></li>
               <li><a href="#" className="hover:text-nile-brightgreen transition">System Status</a></li>
             </ul>
           </div>

@@ -1,90 +1,77 @@
 import http from 'node:http';
-import { mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { DatabaseSync } from 'node:sqlite';
+import { randomUUID } from 'node:crypto';
+import { MongoClient } from 'mongodb';
+import { v2 as cloudinary } from 'cloudinary';
+import Busboy from 'busboy';
 
-const here = dirname(fileURLToPath(import.meta.url));
-const dataDirectory = resolve(here, 'data');
-mkdirSync(dataDirectory, { recursive: true });
-
-const databasePath = process.env.NILEPAY_DATABASE_PATH || resolve(dataDirectory, 'nilepay.sqlite');
 const port = Number(process.env.API_PORT || 8787);
-const db = new DatabaseSync(databasePath);
+const MAX_FILE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_FILE_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png']);
 
-db.exec(`
-  PRAGMA journal_mode = WAL;
-  PRAGMA foreign_keys = ON;
+function requireConfiguration() {
+  const required = [
+    'MONGODB_URI',
+    'CLOUDINARY_CLOUD_NAME',
+    'CLOUDINARY_API_KEY',
+    'CLOUDINARY_API_SECRET',
+  ];
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length) throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+}
 
-  CREATE TABLE IF NOT EXISTS applications (
-    id TEXT PRIMARY KEY,
-    data TEXT NOT NULL,
-    status TEXT NOT NULL,
-    account_type TEXT,
-    country TEXT,
-    submitted_date TEXT,
-    updated_at TEXT NOT NULL
-  );
+requireConfiguration();
 
-  CREATE TABLE IF NOT EXISTS audit_events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    application_id TEXT NOT NULL,
-    event_type TEXT NOT NULL,
-    actor TEXT NOT NULL,
-    payload TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
-  );
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
 
-  CREATE INDEX IF NOT EXISTS applications_status_idx ON applications(status);
-  CREATE INDEX IF NOT EXISTS applications_country_idx ON applications(country);
-  CREATE INDEX IF NOT EXISTS audit_application_idx ON audit_events(application_id, created_at);
-`);
+const mongoClient = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
+let database;
 
-const selectApplication = db.prepare('SELECT data FROM applications WHERE id = ?');
-const selectApplications = db.prepare('SELECT data FROM applications ORDER BY updated_at DESC');
-const selectApplicationMeta = db.prepare('SELECT status, data FROM applications WHERE id = ?');
-const countApplications = db.prepare('SELECT COUNT(*) AS count FROM applications');
-const upsertApplication = db.prepare(`
-  INSERT INTO applications (id, data, status, account_type, country, submitted_date, updated_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
-  ON CONFLICT(id) DO UPDATE SET
-    data = excluded.data,
-    status = excluded.status,
-    account_type = excluded.account_type,
-    country = excluded.country,
-    submitted_date = excluded.submitted_date,
-    updated_at = excluded.updated_at
-`);
-const insertAudit = db.prepare(`
-  INSERT INTO audit_events (application_id, event_type, actor, payload, created_at)
-  VALUES (?, ?, ?, ?, ?)
-`);
-const selectAudit = db.prepare(`
-  SELECT id, event_type AS eventType, actor, payload, created_at AS createdAt
-  FROM audit_events
-  WHERE application_id = ?
-  ORDER BY id DESC
-`);
+async function connectDatabase() {
+  if (database) return database;
+  await mongoClient.connect();
+  database = mongoClient.db(process.env.MONGODB_DATABASE || undefined);
+  await Promise.all([
+    database.collection('applications').createIndex({ id: 1 }, { unique: true }),
+    database.collection('applications').createIndex({ status: 1, updated_at: -1 }),
+    database.collection('audit_events').createIndex({ application_id: 1, created_at: -1 }),
+  ]);
+  return database;
+}
 
 function json(response, status, body) {
+  if (response.writableEnded) return;
   response.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
   });
   response.end(JSON.stringify(body));
 }
 
 function readJson(request) {
-  return new Promise((resolveBody, reject) => {
-    let raw = '';
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let bytes = 0;
     request.on('data', (chunk) => {
-      raw += chunk;
-      if (raw.length > 5_000_000) reject(new Error('Request body exceeds 5MB.'));
+      bytes += chunk.length;
+      if (bytes > MAX_FILE_BYTES) {
+        reject(new Error('Request body exceeds 5MB.'));
+        request.destroy();
+        return;
+      }
+      chunks.push(chunk);
     });
     request.on('end', () => {
       try {
-        resolveBody(raw ? JSON.parse(raw) : {});
+        const raw = Buffer.concat(chunks).toString('utf8');
+        resolve(raw ? JSON.parse(raw) : {});
       } catch {
         reject(new Error('Invalid JSON body.'));
       }
@@ -97,70 +84,52 @@ function normalizeApplication(application) {
   if (!application || typeof application !== 'object' || !application.id) {
     throw new Error('Each application requires an id.');
   }
+  const { _id, ...data } = application;
   return {
-    ...application,
-    status: application.status || 'Draft',
-    kycData: application.kycData || {},
-    documentVerification: application.documentVerification || {},
-    timeline: Array.isArray(application.timeline) ? application.timeline : [],
+    ...data,
+    status: data.status || 'Draft',
+    kycData: data.kycData || {},
+    documentVerification: data.documentVerification || {},
+    timeline: Array.isArray(data.timeline) ? data.timeline : [],
   };
 }
 
-function saveApplication(application, actor = 'System sync') {
+async function saveApplication(db, application, actor = 'Nile Pay') {
+  const applications = db.collection('applications');
+  const auditEvents = db.collection('audit_events');
   const normalized = normalizeApplication(application);
-  const previousRow = selectApplicationMeta.get(normalized.id);
-  const previousApplication = previousRow ? JSON.parse(previousRow.data) : null;
+  const previous = await applications.findOne({ id: normalized.id });
   const now = new Date().toISOString();
+  const saved = { ...normalized, updated_at: now };
 
-  upsertApplication.run(
-    normalized.id,
-    JSON.stringify(normalized),
-    normalized.status,
-    normalized.accountType || null,
-    normalized.country || normalized.kycData?.country || null,
-    normalized.submittedDate || null,
-    now,
-  );
+  await applications.updateOne({ id: saved.id }, { $set: saved }, { upsert: true });
 
-  if (!previousRow) {
-    insertAudit.run(normalized.id, 'application.created', actor, JSON.stringify({ status: normalized.status }), now);
-  } else if (previousRow.status !== normalized.status) {
-    insertAudit.run(
-      normalized.id,
-      'application.status_changed',
-      actor,
-      JSON.stringify({ from: previousRow.status, to: normalized.status }),
-      now,
-    );
-  }
-
-  if (previousApplication) {
-    const previousDocuments = JSON.stringify(previousApplication.documentVerification || {});
-    const currentDocuments = JSON.stringify(normalized.documentVerification || {});
-    if (previousDocuments !== currentDocuments) {
-      insertAudit.run(
-        normalized.id,
-        'document.review_updated',
-        actor,
-        JSON.stringify({ documentVerification: normalized.documentVerification }),
-        now,
-      );
+  const events = [];
+  if (!previous) {
+    events.push({ event_type: 'application.created', payload: { status: saved.status } });
+  } else {
+    if (previous.status !== saved.status) {
+      events.push({
+        event_type: 'application.status_changed',
+        payload: { from: previous.status, to: saved.status },
+      });
     }
-
-    const previousTimelineLength = previousApplication.timeline?.length || 0;
-    const addedEvents = normalized.timeline.slice(previousTimelineLength);
-    addedEvents.forEach((event) => {
-      insertAudit.run(
-        normalized.id,
-        'timeline.event_added',
-        event.user || actor,
-        JSON.stringify(event),
-        now,
-      );
-    });
+    if (JSON.stringify(previous.documentVerification || {}) !== JSON.stringify(saved.documentVerification)) {
+      events.push({
+        event_type: 'document.review_updated',
+        payload: { documentVerification: saved.documentVerification },
+      });
+    }
   }
-
-  return normalized;
+  if (events.length) {
+    await auditEvents.insertMany(events.map((event) => ({
+      application_id: saved.id,
+      actor,
+      created_at: now,
+      ...event,
+    })));
+  }
+  return saved;
 }
 
 function routeMatch(pathname, expression) {
@@ -168,91 +137,210 @@ function routeMatch(pathname, expression) {
   return match ? match.slice(1).map(decodeURIComponent) : null;
 }
 
+function uploadDocument(request, response) {
+  return new Promise((resolve) => {
+    let settled = false;
+    let fileSeen = false;
+    const finish = (status, body) => {
+      if (settled) return;
+      settled = true;
+      json(response, status, body);
+      resolve();
+    };
+
+    let busboy;
+    try {
+      busboy = Busboy({
+        headers: request.headers,
+        limits: { files: 1, fileSize: MAX_FILE_BYTES, fields: 0 },
+      });
+    } catch (error) {
+      finish(400, { error: error.message });
+      return;
+    }
+
+    busboy.on('file', (_field, file, info) => {
+      fileSeen = true;
+      if (!ALLOWED_FILE_TYPES.has(info.mimeType)) {
+        file.resume();
+        finish(415, { error: 'Only PDF, PNG, and JPEG documents are accepted.' });
+        return;
+      }
+
+      const safeName = info.filename.replace(/[^a-zA-Z0-9_.-]/g, '_') || 'document';
+      let tooLarge = false;
+      file.on('limit', () => {
+        tooLarge = true;
+      });
+
+      const uploadStream = cloudinary.uploader.upload_stream({
+        folder: 'nilepay/compliance-documents',
+        resource_type: 'auto',
+        public_id: `${randomUUID()}-${safeName}`,
+        use_filename: false,
+      }, (error, result) => {
+        if (tooLarge) {
+          if (result?.public_id) {
+            cloudinary.uploader.destroy(result.public_id, { resource_type: result.resource_type }).catch(() => {});
+          }
+          finish(413, { error: 'Document exceeds the 5MB size limit.' });
+          return;
+        }
+        if (error) {
+          finish(502, { error: 'Cloudinary upload failed.' });
+          return;
+        }
+
+        const downloadUrl = result.secure_url.replace('/upload/', '/upload/fl_attachment/');
+        finish(201, {
+          name: info.filename,
+          type: info.mimeType,
+          bytes: result.bytes,
+          size: `${(result.bytes / (1024 * 1024)).toFixed(1)}MB`,
+          url: result.secure_url,
+          downloadUrl,
+          publicId: result.public_id,
+          resourceType: result.resource_type,
+          uploadedAt: result.created_at,
+        });
+      });
+      file.pipe(uploadStream);
+    });
+
+    busboy.on('filesLimit', () => finish(400, { error: 'Only one document can be uploaded at a time.' }));
+    busboy.on('error', (error) => finish(400, { error: error.message }));
+    busboy.on('finish', () => {
+      if (!fileSeen) finish(400, { error: 'No document was provided.' });
+    });
+    request.pipe(busboy);
+  });
+}
+
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
 
-  if (request.method === 'GET' && url.pathname === '/api/health') {
-    return json(response, 200, { ok: true, service: 'nilepay-compliance-api', database: databasePath });
-  }
-
-  if (request.method === 'GET' && url.pathname === '/api/applications') {
-    const applications = selectApplications.all().map((row) => JSON.parse(row.data));
-    return json(response, 200, { applications });
-  }
-
-  const applicationRoute = routeMatch(url.pathname, /^\/api\/applications\/([^/]+)$/);
-  if (request.method === 'GET' && applicationRoute) {
-    const row = selectApplication.get(applicationRoute[0]);
-    return row
-      ? json(response, 200, { application: JSON.parse(row.data) })
-      : json(response, 404, { error: 'Application not found.' });
-  }
-
-  const auditRoute = routeMatch(url.pathname, /^\/api\/applications\/([^/]+)\/audit$/);
-  if (request.method === 'GET' && auditRoute) {
-    const events = selectAudit.all(auditRoute[0]).map((event) => ({
-      ...event,
-      payload: JSON.parse(event.payload),
-    }));
-    return json(response, 200, { events });
+  if (request.method === 'OPTIONS') {
+    response.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, PUT, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+    response.end();
+    return;
   }
 
   try {
-    if (request.method === 'POST' && url.pathname === '/api/bootstrap') {
-      const existingCount = countApplications.get().count;
-      if (existingCount > 0) {
-        const applications = selectApplications.all().map((row) => JSON.parse(row.data));
-        return json(response, 200, { applications, bootstrapped: false });
-      }
+    const db = await connectDatabase();
+    const applications = db.collection('applications');
 
-      const body = await readJson(request);
-      const applications = Array.isArray(body.applications) ? body.applications : [];
-      db.exec('BEGIN');
+    if (request.method === 'GET' && url.pathname === '/api/health') {
+      await db.command({ ping: 1 });
+      return json(response, 200, {
+        ok: true,
+        service: 'nilepay-compliance-api',
+        database: 'connected',
+        cloudinary: 'configured',
+      });
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/upload') {
+      return uploadDocument(request, response);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/bootstrap') {
       try {
-        applications.forEach((application) => saveApplication(application, 'Demo bootstrap'));
-        db.exec('COMMIT');
-      } catch (error) {
-        db.exec('ROLLBACK');
-        throw error;
+        const body = await readJson(request);
+        if (!Array.isArray(body.applications)) throw new Error('applications must be an array.');
+        const saved = [];
+        for (const application of body.applications) {
+          saved.push(await saveApplication(db, application, 'Bootstrap'));
+        }
+        return json(response, 200, { applications: saved });
+      } catch (err) {
+        return json(response, 400, { error: err.message });
       }
-      return json(response, 201, { applications, bootstrapped: true });
+    }
+
+    if (request.method === 'POST' && url.pathname === '/api/admin/verify') {
+      try {
+        const body = await readJson(request);
+        const expected = process.env.ADMIN_PASSCODE || '878787';
+        if (String(body.passcode) === String(expected)) {
+          return json(response, 200, { success: true });
+        } else {
+          return json(response, 401, { error: 'Invalid compliance passcode.' });
+        }
+      } catch (err) {
+        return json(response, 400, { error: err.message });
+      }
+    }
+
+    if (request.method === 'GET' && url.pathname === '/api/applications') {
+      const records = await applications.find({}).sort({ updated_at: -1 }).toArray();
+      return json(response, 200, { applications: records });
+    }
+
+    const applicationRoute = routeMatch(url.pathname, /^\/api\/applications\/([^/]+)$/);
+    const auditRoute = routeMatch(url.pathname, /^\/api\/applications\/([^/]+)\/audit$/);
+
+    if (request.method === 'GET' && auditRoute) {
+      const events = await db.collection('audit_events')
+        .find({ application_id: auditRoute[0] })
+        .sort({ created_at: -1 })
+        .toArray();
+      return json(response, 200, { events });
+    }
+
+    if (request.method === 'GET' && applicationRoute) {
+      const application = await applications.findOne({ id: applicationRoute[0] });
+      return application
+        ? json(response, 200, { application })
+        : json(response, 404, { error: 'Application not found.' });
     }
 
     if (request.method === 'PUT' && url.pathname === '/api/applications') {
       const body = await readJson(request);
       if (!Array.isArray(body.applications)) throw new Error('applications must be an array.');
-
-      db.exec('BEGIN');
-      try {
-        body.applications.forEach((application) => saveApplication(application, body.actor || 'Nile Pay app'));
-        db.exec('COMMIT');
-      } catch (error) {
-        db.exec('ROLLBACK');
-        throw error;
+      const saved = [];
+      for (const application of body.applications) {
+        saved.push(await saveApplication(db, application, body.actor));
       }
-
-      return json(response, 200, { applications: body.applications });
+      return json(response, 200, { applications: saved });
     }
 
     if (request.method === 'PUT' && applicationRoute) {
       const body = await readJson(request);
-      const application = saveApplication({ ...body.application, id: applicationRoute[0] }, body.actor || 'Nile Pay app');
-      return json(response, 200, { application });
+      const saved = await saveApplication(
+        db,
+        { ...(body.application || body), id: applicationRoute[0] },
+        body.actor,
+      );
+      return json(response, 200, { application: saved });
     }
+
+    return json(response, 404, { error: 'API route not found.' });
   } catch (error) {
-    return json(response, 400, { error: error.message });
+    console.error(error);
+    return json(response, 500, { error: error.message || 'Unexpected server error.' });
   }
-
-  return json(response, 404, { error: 'Route not found.' });
 });
 
-server.listen(port, '127.0.0.1', () => {
-  console.log(`Nile Pay compliance API listening on http://127.0.0.1:${port}`);
-});
+console.log('Starting Nile Pay compliance API...');
+try {
+  console.log('Connecting to database...');
+  await connectDatabase();
+  console.log('Database connected successfully!');
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`Nile Pay compliance API listening on http://127.0.0.1:${port}`);
+  });
+} catch (error) {
+  console.error(`Nile Pay API startup failed: ${error.message}`);
+  process.exit(1);
+}
 
 function shutdown() {
-  server.close(() => {
-    db.close();
+  server.close(async () => {
+    await mongoClient.close();
     process.exit(0);
   });
 }
