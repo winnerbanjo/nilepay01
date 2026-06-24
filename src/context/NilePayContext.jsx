@@ -36,25 +36,19 @@ export const NilePayProvider = ({ children }) => {
         const payload = await response.json();
         let serverApplications = payload.applications || [];
 
-        if (serverApplications.length === 0) {
-          const bootstrapResponse = await fetch('/api/bootstrap', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ applications }),
-          });
-          if (!bootstrapResponse.ok) throw new Error('Could not initialise compliance records.');
-          const bootstrapPayload = await bootstrapResponse.json();
-          serverApplications = bootstrapPayload.applications || applications;
-        }
-
         if (!cancelled) {
-          setApplications(prev => {
-            const serverIds = new Set(serverApplications.map(a => a.id));
-            return [
-              ...serverApplications,
-              ...prev.filter(a => !serverIds.has(a.id))
-            ];
-          });
+          if (serverApplications.length === 0) {
+            localStorage.removeItem('nilepay_applications');
+            setApplications([]);
+          } else {
+            setApplications(prev => {
+              const serverIds = new Set(serverApplications.map(a => a.id));
+              return [
+                ...serverApplications,
+                ...prev.filter(a => !serverIds.has(a.id))
+              ];
+            });
+          }
           setBackendStatus('connected');
           setBackendReady(true);
         }
