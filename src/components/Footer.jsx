@@ -136,7 +136,7 @@ export default function Footer() {
               <span>Nigeria (English)</span>
             </button>
             <span className="h-4 w-px bg-white/20" />
-            <span className="text-slate-400">PSSP Regulated Agent</span>
+            <span className="text-slate-400">Partnered with Licensed PSSPs</span>
           </div>
 
         </div>
@@ -144,17 +144,17 @@ export default function Footer() {
         {/* Bottom Section: Massive Regulatory Disclosure Text */}
         <div className="border-t border-white/10 pt-8 text-[10px] text-slate-400 space-y-4 leading-relaxed text-left">
           <p>
-            Nile Pay is a digital merchant onboarding product developed by Nile Inc. Payment processing, merchant accounts, settlement infrastructure, and payout services are supported by our regulated banking and payment infrastructure partners, including Providus Bank PLC and other Central Bank of Nigeria (CBN) licensed payment service partners.
+            Nile Pay is a digital merchant onboarding product developed by Nile Africa Technologies Limited. Payment processing, merchant accounts, settlement infrastructure, and payout services are supported by our regulated banking and payment infrastructure partners, including Providus Bank PLC and other Central Bank of Nigeria (CBN) licensed payment service partners.
           </p>
           <p>
-            Nile Pay operates strictly as a Payment Solution Service Provider (PSSP) agent under Nile Core Technologies. Submission of your Bank Verification Number (BVN), Certificate of Incorporation, Memorandum and Articles of Association (MEMART), and Anti-Money Laundering (AML/CFT) policies is a regulatory requirement under the CBN KYC guidelines to prevent fraudulent checkouts.
+            Nile Pay operates as a payment technology platform in partnership with licensed Payment Solution Service Provider (PSSP) infrastructure partners. Submission of your Bank Verification Number (BVN), Certificate of Incorporation, Memorandum and Articles of Association (MEMART), and Anti-Money Laundering (AML/CFT) policies is a regulatory requirement under the CBN KYC guidelines to prevent fraudulent checkouts.
           </p>
           <p>
             By onboarding on Nile Pay, you acknowledge that payment activation on your nile.ng website domain is subject to compliance verification review. Nile reserves the right to lock checkout capabilities, restrict merchant accounts, or reject applications that fail registry audits. Payout times are subject to standard settlement periods and partner bank gateway functional uptimes.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center justify-between text-[9px] text-slate-500 pt-4 border-t border-white/5">
-            <p>© 2026 Nile Pay Inc. All rights reserved.</p>
+            <p>© 2026 Nile Africa Technologies Limited. All rights reserved.</p>
             <div className="flex space-x-4 mt-2 sm:mt-0">
               <a href="#" className="hover:underline">Privacy Policy</a>
               <a href="#" className="hover:underline">Terms of Service</a>
